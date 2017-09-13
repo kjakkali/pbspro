@@ -1888,11 +1888,13 @@ class DshUtils(object):
             if ret['rc'] == 0 and ret['out']:
                 fn = ret['out'][0]
             if asuser is not None:
+                self.chmod(hostname, tmpfile, mode=0755)
                 self.run_copy(hostname, tmpfile, fn, runas=asuser, level=level)
             else:
                 self.run_copy(hostname, tmpfile, fn)
             return fn
         if asuser is not None:
+            self.chmod(hostname, tmpfile, mode=0755)
             (_, tmpfile2) = tempfile.mkstemp(suffix, prefix, dir, text)
             self.run_copy(hostname, tmpfile, tmpfile2, runas=asuser)
             return tmpfile2
