@@ -284,16 +284,16 @@ class DshUtils(object):
         conf = dict(conf.items() + vars.items())
 
         try:
-            (fd, fn) = self.mkstemp()
+            fn = self.create_temp_file()
             os.chmod(
                 fn,
                 stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+            fd = os.open(fn, os.O_RDWR)
             for k, v in conf.items():
                 os.write(fd, str(k) + '=' + str(v) + '\n')
             os.close(fd)
-            self.chown(path=fn, uid=0, gid=0, sudo=True)
-            self.run_copy(hostname, fn, fout, sudo=True, level=logging.DEBUG2)
-            self.rm(path=fn, sudo=True)
+            self.run_copy(hostname, fn, fout, level=logging.DEBUG2)
+            self.rm(path=fn)
         except:
             raise PbsConfigError(rc=1, rv=None,
                                  msg='error writing to file ' + str(fout))
@@ -540,7 +540,9 @@ class DshUtils(object):
                 home = _user.pw_dir
                 uid = _user.pw_uid
             rhost = os.path.join(home, '.rhosts')
-            (fd, fn) = self.mkstemp(hostname, mode=0755)
+            fn = self.create_temp_file(hostname)
+            self.chmod(hostname, fn, mode=0755)
+            fd = os.open(fn, os.O_RDWR)
             os.write(fd, '#!/bin/bash\n')
             os.write(fd, 'cd %s\n' % (home))
             os.write(fd, '%s -rf %s\n' % (self.which(hostname, 'rm',
@@ -840,7 +842,7 @@ class DshUtils(object):
             ret = {'out': None, 'err': None, 'rc': None}
             rc = rshcmd + sudocmd + cmd
             if as_script:
-                _fd, _script = self.mkstemp()
+                _script = self.create_temp_file()
                 f = open(_script, 'w')
                 script_body = ['#!/bin/bash']
                 if cwd is not None:
@@ -851,7 +853,6 @@ class DshUtils(object):
                 elif isinstance(cmd, list):
                     script_body += [" ".join(cmd)]
                 f.write('\n'.join(script_body))
-                os.close(_fd)
                 f.close()
                 os.chmod(_script, 0755)
                 if not islocal:
@@ -1039,7 +1040,6 @@ class DshUtils(object):
                     cmd += [targethost + ':' + dest]
             else:
                 cmd += [self.which(targethost, 'cp', level=level)]
-                cmd += ['-p']
                 if recursive:
                     cmd += ['-r']
                 cmd += [src]
@@ -1089,22 +1089,24 @@ class DshUtils(object):
             body = ['#!/bin/bash']
             body += ['PYTHONPATH=%s exec %s' % (os.environ['PYTHONPATH'],
                                                 ' '.join(cmd))]
-            fd, fn = self.mkstemp(mode=0777)
+            fn = self.create_temp_file()
+            self.chmod(hostname, fn, mode=0755)
+            fd = os.open(fn, os.O_RDWR)
             os.write(fd, '\n'.join(body))
             os.close(fd)
             tmpdir = self.get_tempdir(hostname)
             dest = os.path.join(tmpdir, os.path.basename(fn))
             oldc = self.copy_cmd[:]
             self.set_copy_cmd('scp -p')
-            self.run_copy(hostname, fn, dest, mode=0777, level=level)
+            self.run_copy(hostname, fn, dest, mode=0755, level=level)
             self.set_copy_cmd(' '.join(oldc))
-            self.rm(None, path=fn, sudo=True, force=True, logerr=False)
+            self.rm(None, path=fn, force=True, logerr=False)
             cmd = dest
         ret = self.run_cmd(hostname, cmd, sudo, stdin, stdout, stderr, input,
                            cwd, env, runas, logerr, as_script, wait_on_script,
                            level)
         if dest is not None:
-            self.rm(hostname, path=dest, sudo=True, force=True, logerr=False)
+            self.rm(hostname, path=dest, force=True, logerr=False)
         # TODO: check why output is coming to ret['err']
         if ret['rc'] == 0:
             ret['out'] = ret['err']
@@ -1748,8 +1750,7 @@ class DshUtils(object):
                 self.logger.error("User %s does not exist!" % (str(name)))
             return
         if self.platform.startswith('sunos'):
-            has_home = self.isdir(path=uinfo.pw_dir, sudo=True,
-                                  level=logging.DEBUG2)
+            has_home = self.isdir(path=uinfo.pw_dir, level=logging.DEBUG2)
         else:
             has_home = True
         cmd = ['userdel']
@@ -1836,6 +1837,66 @@ class DshUtils(object):
         if ((uid is not None) or (gid is not None)):
             self.chown(hostname, fn1, uid=uid, gid=gid, sudo=True)
         return (fd1, fn1)
+
+
+    def create_temp_file(self, hostname=None, suffix='', prefix='PtlPbs', dir=None,
+                text=False, asuser=None, body=None, level=logging.INFOCLI2):
+        """
+        Create a temp file by calling tempfile.mkstemp
+
+        :param hostname: the hostname on which to query tempdir from
+        :type hostname: str or None
+        :param suffix: the file name will end with this suffix
+        :type suffix: str
+        :param prefix: the file name will begin with this prefix
+        :type prefix: str
+        :param dir: the file will be created in this directory
+        :type dir: str or None
+        :param text: the file is opened in text mode is this is true
+                     else in binary mode
+        :type text: boolean
+        :param uid: Optional username or uid of temp file owner
+        :param gid: Optional group name or gid of temp file group
+                    owner
+        :param mode: Optional mode bits to assign to the temporary
+                     file
+        :param body: Optional content to write to the temporary file
+        :param level: logging level, defaults to INFOCLI2
+        """
+
+        (fd, tmpfile) = tempfile.mkstemp(suffix, prefix, dir, text)
+
+        if body is not None:
+            if isinstance(body, list):
+                os.write(fd, "\n".join(body))
+            else:
+                os.write(fd, body)
+        os.close(fd)
+        if not self.is_localhost(hostname):
+            tmp_args = []
+            if suffix:
+                tmp_args += ['suffix=\'' + suffix + '\'']
+            if prefix:
+                tmp_args += ['prefix=\'' + prefix + '\'']
+            if dir is not None:
+                tmp_args += ['dir=\'' + str(dir) + '\'']
+            args = ",".join(tmp_args)
+            ret = self.run_cmd(hostname,
+                               ['python', '-c', '"import tempfile; ' +
+                                'print tempfile.mkdtemp(' + args + ')"'],
+                               level=level)
+            if ret['rc'] == 0 and ret['out']:
+                fn = ret['out'][0]
+            if asuser is not None:
+                self.run_copy(hostname, tmpfile, fn, runas=asuser, level=level)
+            else:
+                self.run_copy(hostname, tmpfile, fn)
+            return fn
+        if asuser is not None:
+            (_, tmpfile2) = tempfile.mkstemp(suffix, prefix, dir, text)
+            self.run_copy(hostname, tmpfile, tmpfile2, runas=asuser)
+            return tmpfile2
+        return tmpfile
 
     def mkdtemp(self, hostname=None, suffix='', prefix='PtlPbs', dir=None,
                 uid=None, gid=None, mode=None, level=logging.INFOCLI2):

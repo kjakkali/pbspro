@@ -4176,7 +4176,8 @@ class PBSService(PBSObject):
                 conf = newconf
 
             for k, v in conf.items():
-                (fd, fn) = self.du.mkstemp()
+                fn = self.du.create_temp_file()
+                fd = os.open(fn, os.O_RDWR)
                 # handle server data saved as output of qmgr commands by piping
                 # data back into qmgr
                 if k.startswith('qmgr_'):
@@ -5659,13 +5660,11 @@ class Server(PBSService):
                             aprun_cmd += " " + executable
                         arg_list = obj.attributes[ATTR_Arglist]
                         aprun_cmd += " " + self.utils.convert_arglist(arg_list)
-                    usr_id = pwd.getpwnam(obj.username)[2]
-                    grp_id = pwd.getpwnam(obj.username)[3]
-                    (fd, fn) = self.du.mkstemp(hostname=None,
+                    fn = self.du.create_temp_file(hostname=None,
                                                prefix='PtlPbsJobScript',
-                                               uid=usr_id, gid=grp_id,
-                                               mode=0755, body=aprun_cmd)
-                    os.close(fd)
+                                               asuser=obj.username,
+                                               body=aprun_cmd)
+                    self.du.chmod(hostname, fn, mode=0755)
                     script = fn
             elif script is None and obj.script is not None:
                 script = obj.script
@@ -7520,7 +7519,7 @@ class Server(PBSService):
             resources = self.resources
         if isinstance(resources, Resource):
             resources = {resources.name: resources}
-        fn = self.du.mkstemp()[1]
+        fn = self.du.create_temp_file()
         f = open(fn, 'w+')
         for r in resources.values():
             f.write(r.attributes['id'])
@@ -7535,10 +7534,7 @@ class Server(PBSService):
                                 'resourcedef')
         else:
             dest = filename
-        self.du.run_copy(self.hostname, fn, dest, mode=0644, sudo=True)
-        if filename is None:
-            self.du.chown(self.hostname, path=dest, uid=0, gid=0,
-                          sudo=True)
+        self.du.run_copy(self.hostname, fn, dest, sudo=True)
         os.remove(fn)
         if restart:
             return self.restart()
@@ -7644,18 +7640,16 @@ class Server(PBSService):
                 _data = kwargs['data']
 
         if _data is not None:
-            (fd, fn) = self.du.mkstemp()
+            fn = self.du.create_temp_file()
             tmpfile = open(fn, 'w+b')
             cPickle.dump(_data, tmpfile)
             tmpfile.close()
-            os.close(fd)
-
             os.chmod(fn, 0755)
 
             if self._is_local:
                 os.chdir(tempfile.gettempdir())
             else:
-                self.du.run_copy(self.hostname, fn, fn, sudo=True)
+                self.du.run_copy(self.hostname, fn, fn)
 
         if not self._is_local:
             p_env = '"import os; print os.environ[\'PTL_EXEC\']"'
@@ -9160,10 +9154,7 @@ class Server(PBSService):
         :returns: True on success.
         :raises: PbsManagerError
         """
-        (fd, fn) = self.du.mkstemp()
-        os.write(fd, body)
-        os.close(fd)
-
+        fn = self.du.create_temp_file(body=body)
         if not self._is_local:
             tmpdir = self.du.get_tempdir(self.hostname)
             rfile = os.path.join(tmpdir, os.path.basename(fn))
@@ -10512,7 +10503,8 @@ class Scheduler(PBSService):
 
         reconfig_time = int(time.time())
         try:
-            (fd, fn) = self.du.mkstemp()
+            fn = self.du.create_temp_file()
+            fd = os.open(fn, os.O_RDWR)
             for k in self._config_order:
                 if k in config:
                     if k in self._sched_config_comments:
@@ -10540,16 +10532,10 @@ class Scheduler(PBSService):
             if path is None:
                 sp = os.path.join(self.pbs_conf['PBS_HOME'], "sched_priv",
                                   "sched_config")
-                if self.du.is_localhost(self.hostname):
-                    self.du.run_copy(self.hostname, sp, sp + '.bak', sudo=True)
-                else:
-                    cmd = ['mv', sp, sp + '.bak']
-                    self.du.run_cmd(self.hostname, cmd, sudo=True)
             else:
                 sp = path
-            self.du.run_copy(self.hostname, fn, sp, mode=0644, sudo=True)
+            self.du.run_copy(self.hostname, fn, sp, sudo=True)
             os.remove(fn)
-            self.du.chown(self.hostname, path=sp, uid=0, gid=0, sudo=True)
 
             self.logger.debug(self.logprefix + "updated configuration")
         except:
@@ -10615,12 +10601,8 @@ class Scheduler(PBSService):
             script_body = f.readlines()
             f.close()
         else:
-            (fd, file) = self.du.mkstemp(prefix='PtlPbsSchedConfig')
-            f = open(file, "w")
-            f.write(script_body)
-            f.close()
-            os.close(fd)
-
+            file = self.du.create_temp_file(prefix='PtlPbsSchedConfig', 
+                                            body=script_body)
         self.server_dyn_res = file
         self.logger.info(self.logprefix + "adding server dyn res " + file)
         self.logger.info("-" * 30)
@@ -10681,7 +10663,7 @@ class Scheduler(PBSService):
         if self.du.cmp(self.hostname, self.dflt_resource_group_file,
                        self.resource_group_file) != 0:
             self.du.run_copy(self.hostname, self.dflt_resource_group_file,
-                             self.resource_group_file, mode=0644, sudo=True)
+                             self.resource_group_file, sudo=True)
         if self.server_dyn_res is not None:
             self.du.rm(self.hostname, self.server_dyn_res, force=True,
                        sudo=True)
@@ -10690,7 +10672,7 @@ class Scheduler(PBSService):
         if self.du.cmp(self.hostname, self.dflt_sched_config_file,
                        self.sched_config_file) != 0:
             self.du.run_copy(self.hostname, self.dflt_sched_config_file,
-                             self.sched_config_file, mode=0644, sudo=True)
+                             self.sched_config_file, sudo=True)
         self.signal('-HUP')
         # Revert fairshare usage
         cmd = [os.path.join(self.pbs_conf['PBS_EXEC'], 'sbin', 'pbsfs'), '-e']
@@ -10831,8 +10813,7 @@ class Scheduler(PBSService):
         if self.du.cmp(self.hostname, self.dflt_holidays_file,
                        self.holidays_file) != 0:
             ret = self.du.run_copy(self.hostname, self.dflt_holidays_file,
-                                   self.holidays_file, mode=0644, sudo=True,
-                                   logerr=True)
+                                   self.holidays_file, sudo=True, logerr=True)
             rc = ret['rc']
             # Update the internal data structures for the updated file
             self.holidays_parse_file(level=level)
@@ -11378,12 +11359,9 @@ class Scheduler(PBSService):
 
         self.logger.debug("content being written:\n" + str(content))
 
-        (fd, fn) = self.du.mkstemp(self.hostname, body=content)
-        ret = self.du.run_copy(self.hostname, fn, out_path, mode=0644,
-                               sudo=True)
+        fn = self.du.create_temp_file(self.hostname, body=content)
+        ret = self.du.run_copy(self.hostname, fn, out_path, sudo=True)
         self.du.rm(self.hostname, fn)
-        self.du.chown(self.hostname, out_path, uid=0, gid=0,
-                      sudo=True)
 
         if ret['rc'] != 0:
             raise PbsSchedConfigError(rc=ret['rc'], rv=ret['out'],
@@ -11394,9 +11372,6 @@ class Scheduler(PBSService):
             if not rv:
                 raise PbsSchedConfigError(rc=1, rv=False,
                                           msg='error applying holidays file')
-        self.du.chown(self.hostname, path=out_path, uid=0,
-                      gid=0, sudo=True)
-
         return True
 
     def parse_dedicated_time(self, file=None):
@@ -11507,14 +11482,14 @@ class Scheduler(PBSService):
         if dtime_from is not None and dtime_to is not None:
             self.dedicated_time.append({'from': dtime_from, 'to': dtime_to})
         try:
-            (fd, fn) = self.du.mkstemp()
+            fn = self.du.create_temp_file()
+            fd = os.open(fn, os.O_RDWR)
             for l in self.dedicated_time_as_str:
                 os.write(fd, l + '\n')
             os.close(fd)
             ddfile = os.path.join(self.pbs_conf['PBS_HOME'], 'sched_priv',
                                   'dedicated_time')
-            self.du.run_copy(self.hostname, fn, ddfile, mode=0644, uid=0,
-                             gid=0, sudo=True)
+            self.du.run_copy(self.hostname, fn, ddfile, sudo=True)
             os.remove(fn)
         except:
             raise PbsSchedConfigError(rc=1, rv=False,
@@ -11890,14 +11865,9 @@ class FairshareTree(object):
 
     def update_resource_group(self):
         if self.resource_group:
-            (fd, fn) = self.du.mkstemp()
-            os.write(fd, self.__str__())
-            os.close(fd)
+            fn = self.du.create_temp_file(body=self.__str__())
             ret = self.du.run_copy(self.hostname, fn, self.resource_group,
-                                   mode=0644, sudo=True)
-            self.du.chown(self.hostname, self.resource_group, uid=0,
-                          gid=0, sudo=True)
-
+                                   sudo=True)
             os.remove(fn)
 
             if ret['rc'] != 0:
@@ -12620,7 +12590,7 @@ class MoM(PBSService):
         """
         self.config = dict(self.config.items() + conf.items())
         try:
-            (_, fn) = self.du.mkstemp()
+            fn = self.du.create_temp_file()
             f = open(fn, 'w+')
             for k, v in self.config.items():
                 if isinstance(v, list):
@@ -12631,8 +12601,7 @@ class MoM(PBSService):
             f.close()
             dest = os.path.join(
                 self.pbs_conf['PBS_HOME'], 'mom_priv', 'config')
-            self.du.run_copy(self.hostname, fn, dest, mode=0644, sudo=True)
-            self.du.chown(self.hostname, path=dest, uid=0, gid=0, sudo=True)
+            self.du.run_copy(self.hostname, fn, dest, sudo=True)
             os.remove(fn)
         except:
             raise PbsMomConfigError(rc=1, rv=False,
@@ -12675,9 +12644,7 @@ class MoM(PBSService):
         :type restart: bool
         """
         try:
-            (fd, fn) = self.du.mkstemp(self.hostname)
-            os.write(fd, vdef)
-            os.close(fd)
+            fn = self.du.create_temp_file(self.hostname, body=vdef)
         except:
             raise PbsMomConfigError(rc=1, rv=False,
                                     msg="Failed to insert vnode definition")
@@ -12823,9 +12790,7 @@ class MoM(PBSService):
                          ' creating ' + filename + ' with body\n' + '---')
         if body is not None:
             self.logger.info(body)
-            (fd, src) = self.du.mkstemp(prefix='pbs-pelog')
-            os.write(fd, body)
-            os.close(fd)
+            src = self.du.create_temp_file(prefix='pbs-pelog', body=body)
         elif src is not None:
             _b = open(src)
             self.logger.info("\n".join(_b.readlines()))
@@ -12838,18 +12803,6 @@ class MoM(PBSService):
         if ret['rc'] != 0:
             self.logger.error('error creating pelog ')
             return False
-
-        ret = self.du.chown(self.hostname, path=pelog, uid=0, gid=0, sudo=True,
-                            logerr=False)
-        if not ret:
-            self.logger.error('error chowning pelog to root')
-            return False
-
-        ret = self.du.chmod(self.hostname, path=pelog, mode=0755, sudo=True)
-        if not ret:
-            self.logger.error('error changing mode of pelog')
-            return False
-
         return True
 
     def prologue(self, body=None, src=None):
@@ -13106,7 +13059,7 @@ class Job(ResourceResv):
             self.unset_attributes([ATTR_Arglist])
         self.set_attributes()
 
-    def create_script(self, body=None, uid=None, gid=None, hostname=None):
+    def create_script(self, body=None, asuser=None, hostname=None):
         """
         Create a job script from a given body of text into a
         temporary location
@@ -13130,10 +13083,9 @@ class Job(ResourceResv):
             self.du = DshUtils()
         # First create the temporary file as current user and only change
         # its mode once the current user has written to it
-        (fd, fn) = self.du.mkstemp(hostname, prefix='PtlPbsJobScript', uid=uid,
-                                   gid=gid, mode=0755, body=body)
-        os.close(fd)
-
+        fn = self.du.create_temp_file(hostname, prefix='PtlPbsJobScript',
+                                      asuser=asuser, body=body)
+        self.du.chmod(hostname, fn, mode=0755)
         if not self.du.is_localhost(hostname):
             self.du.run_copy(hostname, fn, fn)
         self.script = fn
@@ -13675,8 +13627,7 @@ class PBSInitServices(object):
                 dconf['PBS_START_SCHED'] = 1
             elif daemon == 'comm' and conf.get('PBS_START_COMM', 0) != 0:
                 dconf['PBS_START_COMM'] = 1
-            (fd, fn) = self.du.mkstemp(hostname)
-            os.close(fd)
+            fn = self.du.create_temp_file(hostname)
             self.du.set_pbs_config(hostname, fin=conf_file, fout=fn,
                                    confs=dconf)
             init_cmd += ['PBS_CONF_FILE=' + fn]
@@ -13699,7 +13650,7 @@ class PBSInitServices(object):
             else:
                 init_script = os.path.join(conf['PBS_EXEC'], 'etc',
                                            init_script)
-            if not self.du.isfile(hostname, path=init_script, sudo=True):
+            if not self.du.isfile(hostname, path=init_script):
                 # Could be Type 3 installation where we will not have
                 # PBS_EXEC/libexec/pbs_init.d
                 return []

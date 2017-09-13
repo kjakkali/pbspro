@@ -71,7 +71,8 @@ class TestQmgr(TestFunctional):
         Check that the prefix for new attributes listed out by qmgr list
         are spaces and that for line extensions is a tab
         """
-        fd, fn = self.du.mkstemp()
+        fn = self.du.create_temp_file()
+        fd = open(fn, os.O_RDWR)
         node_prefix = "vn"
         nodename = node_prefix + "[0]"
         vndef_file = None

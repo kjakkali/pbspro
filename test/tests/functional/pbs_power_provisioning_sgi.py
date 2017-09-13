@@ -69,9 +69,7 @@ class Test_power_provisioning_sgi(TestFunctional):
         Setup a fake sgi_api script on all the nodes.
         Return the number of nodes.
         """
-        (fd, fn) = self.du.mkstemp()
-        os.write(fd, script)
-        os.close(fd)
+        fn = self.du.create_temp_file(body=script)
         os.chmod(fn, perm)
 
         done = set()

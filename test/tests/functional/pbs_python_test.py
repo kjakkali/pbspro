@@ -54,9 +54,8 @@ class Test_pbs_python(TestFunctional):
         Thi method spawns a python process using
         pbs_python and checks for the result
         """
-        fd, fn = tempfile.mkstemp(prefix='test', suffix='.py', text=True)
-        os.write(fd, "print \"Hello\"")
-        os.close(fd)
+        fn = tempfile.create_temp_file(prefix='test', suffix='.py',
+                                       body="print \"Hello\"", text=True)
         pbs_python = self.server.pbs_conf['PBS_EXEC'] + "/bin/pbs_python"
         msg = ['Hello']
         cmd = [pbs_python] + [fn]
