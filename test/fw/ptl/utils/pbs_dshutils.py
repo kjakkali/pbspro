@@ -1873,30 +1873,21 @@ class DshUtils(object):
                 os.write(fd, body)
         os.close(fd)
         if not self.is_localhost(hostname):
-            tmp_args = []
-            if suffix:
-                tmp_args += ['suffix=\'' + suffix + '\'']
-            if prefix:
-                tmp_args += ['prefix=\'' + prefix + '\'']
-            if dir is not None:
-                tmp_args += ['dir=\'' + str(dir) + '\'']
-            args = ",".join(tmp_args)
-            ret = self.run_cmd(hostname,
-                               ['python', '-c', '"import tempfile; ' +
-                                'print tempfile.mkdtemp(' + args + ')"'],
-                               level=level)
-            if ret['rc'] == 0 and ret['out']:
-                fn = ret['out'][0]
             if asuser is not None:
-                self.chmod(hostname, tmpfile, mode=0755)
-                self.run_copy(hostname, tmpfile, fn, runas=asuser, level=level)
+                self.chmod(hostname, tmpfile, mode=0777)
+                self.run_copy(hostname, tmpfile, tmpfile, runas=asuser,
+                              mode=0755, level=level)
             else:
-                self.run_copy(hostname, tmpfile, fn)
-            return fn
+                self.run_copy(hostname, tmpfile, tmpfile, 
+                              mode=0755, level=level)
+            os.remove(tmpfile)
         if asuser is not None:
-            self.chmod(hostname, tmpfile, mode=0755)
+            self.chmod(hostname, tmpfile, mode=0777)
             (_, tmpfile2) = tempfile.mkstemp(suffix, prefix, dir, text)
-            self.run_copy(hostname, tmpfile, tmpfile2, runas=asuser)
+            self.chmod(hostname, tmpfile2, mode=0777)
+            self.run_copy(hostname, tmpfile, tmpfile2, runas=asuser, 
+                          mode=0755, level=level)
+            os.remove(tmpfile)
             return tmpfile2
         return tmpfile
 
