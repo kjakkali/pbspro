@@ -1864,30 +1864,47 @@ class DshUtils(object):
         :param level: logging level, defaults to INFOCLI2
         """
 
+        # create a temp file as current user
         (fd, tmpfile) = tempfile.mkstemp(suffix, prefix, dir, text)
 
+        # write user provided contents to file
         if body is not None:
             if isinstance(body, list):
                 os.write(fd, "\n".join(body))
             else:
                 os.write(fd, body)
         os.close(fd)
+        # if temp file to be created on remote host
         if not self.is_localhost(hostname):
             if asuser is not None:
-                self.chmod(hostname, tmpfile, mode=0777)
+                # by default mkstemp creates file with 0600 permission
+                # to create file as different user first change the file 
+                # permission to 0644 so that other user has read permission
+                self.chmod(hostname, tmpfile, mode=0644)
+                # copy temp file created  on local host to remote host 
+                # as different user
                 self.run_copy(hostname, tmpfile, tmpfile, runas=asuser,
-                              mode=0755, level=level)
+                              level=level)
             else:
-                self.run_copy(hostname, tmpfile, tmpfile, 
-                              mode=0755, level=level)
-            os.remove(tmpfile)
+                #copy temp file created on localhost to remote as current user
+                self.run_copy(hostname, tmpfile, tmpfile, level=level)
+            #remove local temp file
+            os.unlink(tmpfile)
         if asuser is not None:
-            self.chmod(hostname, tmpfile, mode=0777)
+            # by default mkstemp creates file with 0600 permission
+            # to create file as different user first change the file 
+            # permission to 0644 so that other user has read permission
+            self.chmod(hostname, tmpfile, mode=0644)
+            # since we need to create as differnt user than current user
+            # create a temp file just to get temp file name with absolute path
             (_, tmpfile2) = tempfile.mkstemp(suffix, prefix, dir, text)
-            self.chmod(hostname, tmpfile2, mode=0777)
+            # remove the newly created temp file
+            os.unlink(tmpfile2)
+            # copy the orginal temp as new temp file
             self.run_copy(hostname, tmpfile, tmpfile2, runas=asuser, 
-                          mode=0755, level=level)
-            os.remove(tmpfile)
+                          level=level)
+            # remove original temp file
+            os.unlink(tmpfile)
             return tmpfile2
         return tmpfile
 
