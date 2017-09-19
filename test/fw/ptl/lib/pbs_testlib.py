@@ -4177,24 +4177,24 @@ class PBSService(PBSObject):
 
             for k, v in conf.items():
                 fn = self.du.create_temp_file()
-                fd = os.open(fn, os.O_RDWR)
+                fd = open(fn, "w")
                 # handle server data saved as output of qmgr commands by piping
                 # data back into qmgr
                 if k.startswith('qmgr_'):
                     qmgr = os.path.join(self.client_conf['PBS_EXEC'],
                                         'bin', 'qmgr')
-                    os.write(fd, "\n".join(v))
+                    fd.write("\n".join(v))
                     self.du.run_cmd(
                         self.hostname,
                         [qmgr],
                         cstdin=fd,
                         sudo=True)
                 else:
-                    os.write(fd, "\n".join(v))
+                    fd.write("\n".join(v))
                     # append the last line
-                    os.write(fd, "\n")
+                    fd.write("\n")
                     self.du.run_cmd(self.hostname, ['cp', fn, k], sudo=True)
-                os.close(fd)
+                fd.close()
                 os.remove(fn)
 
             return True
@@ -10504,30 +10504,30 @@ class Scheduler(PBSService):
         reconfig_time = int(time.time())
         try:
             fn = self.du.create_temp_file()
-            fd = os.open(fn, os.O_RDWR)
+            fd = open(fn, "w")
             for k in self._config_order:
                 if k in config:
                     if k in self._sched_config_comments:
-                        os.write(fd, "\n".join(self._sched_config_comments[k]))
-                        os.write(fd, "\n")
+                        fd.write("\n".join(self._sched_config_comments[k]))
+                        fd.write("\n")
                     v = config[k]
                     if isinstance(v, list):
                         for val in v:
-                            os.write(fd, k + ": " + str(val) + "\n")
+                            fd.write(k + ": " + str(val) + "\n")
                     else:
-                        os.write(fd, k + ": " + str(v) + "\n")
+                        fd.write(k + ": " + str(v) + "\n")
                 elif k in self._sched_config_comments:
-                    os.write(fd, "\n".join(self._sched_config_comments[k]))
-                    os.write(fd, "\n")
+                    fd.write("\n".join(self._sched_config_comments[k]))
+                    fd.write("\n")
             for k, v in self.sched_config.items():
                 if k not in self._config_order:
-                    os.write(fd, k + ": " + str(v).strip() + "\n")
+                    fd.write(k + ": " + str(v).strip() + "\n")
 
             if 'PTL_SCHED_CONFIG_TAIL' in self._sched_config_comments:
-                os.write(fd, "\n".join(
+                fd.write(fd, "\n".join(
                     self._sched_config_comments['PTL_SCHED_CONFIG_TAIL']))
-                os.write(fd, "\n")
-            os.close(fd)
+                fd.write("\n")
+            fd.close()
 
             if path is None:
                 sp = os.path.join(self.pbs_conf['PBS_HOME'], "sched_priv",
@@ -11483,10 +11483,10 @@ class Scheduler(PBSService):
             self.dedicated_time.append({'from': dtime_from, 'to': dtime_to})
         try:
             fn = self.du.create_temp_file()
-            fd = os.open(fn, os.O_RDWR)
+            fd = open(fn, "w")
             for l in self.dedicated_time_as_str:
-                os.write(fd, l + '\n')
-            os.close(fd)
+                fd.write(l + '\n')
+            fd.close()
             ddfile = os.path.join(self.pbs_conf['PBS_HOME'], 'sched_priv',
                                   'dedicated_time')
             self.du.run_copy(self.hostname, fn, ddfile, sudo=True)

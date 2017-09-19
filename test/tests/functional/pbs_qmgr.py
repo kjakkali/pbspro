@@ -72,7 +72,6 @@ class TestQmgr(TestFunctional):
         are spaces and that for line extensions is a tab
         """
         fn = self.du.create_temp_file()
-        fd = open(fn, os.O_RDWR)
         node_prefix = "vn"
         nodename = node_prefix + "[0]"
         vndef_file = None
@@ -83,7 +82,7 @@ class TestQmgr(TestFunctional):
                 qmgr_cmd = ["qmgr", "-c", "list sched"]
             else:
                 qmgr_cmd = ["qmgr", "-c", "\'list sched\'"]
-            with os.fdopen(fd, "w+") as tempfd:
+            with open(fn, "w+") as tempfd:
                 ret = self.du.run_cmd(self.server.hostname, qmgr_cmd,
                                       stdout=tempfd)
 

@@ -288,10 +288,10 @@ class DshUtils(object):
             os.chmod(
                 fn,
                 stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-            fd = os.open(fn, os.O_RDWR)
+            fd = open(fn, "w")
             for k, v in conf.items():
-                os.write(fd, str(k) + '=' + str(v) + '\n')
-            os.close(fd)
+                fd.write(str(k) + '=' + str(v) + '\n')
+            fd.close()
             self.run_copy(hostname, fn, fout, level=logging.DEBUG2)
             self.rm(path=fn)
         except:
@@ -542,27 +542,27 @@ class DshUtils(object):
             rhost = os.path.join(home, '.rhosts')
             fn = self.create_temp_file(hostname)
             self.chmod(hostname, fn, mode=0755)
-            fd = os.open(fn, os.O_RDWR)
-            os.write(fd, '#!/bin/bash\n')
-            os.write(fd, 'cd %s\n' % (home))
-            os.write(fd, '%s -rf %s\n' % (self.which(hostname, 'rm',
+            fd = open(fn, os.O_RDWR)
+            fd.write('#!/bin/bash\n')
+            fd.write('cd %s\n' % (home))
+            fd.write('%s -rf %s\n' % (self.which(hostname, 'rm',
                                                      level=logging.DEBUG2),
                                           rhost))
-            os.write(fd, 'touch %s\n' % (rhost))
+            fd.write('touch %s\n' % (rhost))
             for k, v in conf.items():
                 if isinstance(v, list):
                     for eachprop in v:
                         l = 'echo "%s %s" >> %s\n' % (str(k),
                                                       str(eachprop),
                                                       rhost)
-                        os.write(fd, l)
+                        fd.write(l)
                 else:
                     l = 'echo "%s %s" >> %s\n' % (str(k), str(v), rhost)
-                    os.write(fd, l)
-            os.write(fd, '%s 0600 %s\n' % (self.which(hostname, 'chmod',
+                    fd.write(l)
+            fd.write('%s 0600 %s\n' % (self.which(hostname, 'chmod',
                                                       level=logging.DEBUG2),
                                            rhost))
-            os.close(fd)
+            fd.close()
             ret = self.run_cmd(hostname, cmd=fn, runas=uid)
             self.rm(hostname, path=fn)
             if ret['rc'] != 0:
@@ -1051,7 +1051,7 @@ class DshUtils(object):
             if ret['rc'] != 0:
                 self.logger.error(ret['err'])
             elif sudo_save_dest:
-                cmd = [self.which(targethost, 'mv', level=level)]
+                cmd = [self.which(targethost, 'cp', level=level)]
                 cmd += [dest, sudo_save_dest]
                 ret = self.run_cmd(targethost, cmd=cmd, sudo=True, level=level)
                 dest = sudo_save_dest
@@ -1091,9 +1091,9 @@ class DshUtils(object):
                                                 ' '.join(cmd))]
             fn = self.create_temp_file()
             self.chmod(hostname, fn, mode=0755)
-            fd = os.open(fn, os.O_RDWR)
-            os.write(fd, '\n'.join(body))
-            os.close(fd)
+            fd = open(fn, "w")
+            fd.write('\n'.join(body))
+            fd.close()
             tmpdir = self.get_tempdir(hostname)
             dest = os.path.join(tmpdir, os.path.basename(fn))
             oldc = self.copy_cmd[:]
