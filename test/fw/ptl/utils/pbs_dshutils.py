@@ -542,7 +542,7 @@ class DshUtils(object):
             rhost = os.path.join(home, '.rhosts')
             fn = self.create_temp_file(hostname)
             self.chmod(hostname, fn, mode=0755)
-            fd = open(fn, os.O_RDWR)
+            fd = open(fn, "w")
             fd.write('#!/bin/bash\n')
             fd.write('cd %s\n' % (home))
             fd.write('%s -rf %s\n' % (self.which(hostname, 'rm',

@@ -10524,7 +10524,7 @@ class Scheduler(PBSService):
                     fd.write(k + ": " + str(v).strip() + "\n")
 
             if 'PTL_SCHED_CONFIG_TAIL' in self._sched_config_comments:
-                fd.write(fd, "\n".join(
+                fd.write("\n".join(
                     self._sched_config_comments['PTL_SCHED_CONFIG_TAIL']))
                 fd.write("\n")
             fd.close()
