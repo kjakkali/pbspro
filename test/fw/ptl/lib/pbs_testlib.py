@@ -13219,7 +13219,7 @@ class InteractiveJob(threading.Thread):
 
     logger = logging.getLogger(__name__)
 
-    pexpect_timeout = 15
+    pexpect_timeout = 60
     pexpect_sleep_time = .1
     du = DshUtils()
 
