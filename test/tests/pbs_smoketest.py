@@ -545,6 +545,7 @@ class SmokeTest(PBSTestSuite):
     def test_staging(self):
         """
         Test for file staging
+
         """
         (_, fn) = self.du.mkstemp(uid=str(TEST_USER))
         a = {ATTR_stagein: fn + '2@' + self.server.hostname + ':' + fn}
