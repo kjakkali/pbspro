@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 #
 # Copyright (C) 1994-2019 Altair Engineering, Inc.
 # For more information, contact Altair at www.altair.com.
@@ -704,6 +704,7 @@ if [ "${PBS_START_SERVER:-0}" != 0 ] ; then
 			echo "*** Error starting pbs server"
 			exit $ret
 		fi
+		sleep 30
 		server_started=1
 		if is_cray_xt; then
 			${PBS_EXEC}/bin/qmgr <<-EOF > /dev/null

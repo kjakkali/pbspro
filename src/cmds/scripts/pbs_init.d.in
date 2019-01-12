@@ -315,19 +315,19 @@ start_pbs() {
 	1)
 	    echo PBS Home directory ${PBS_HOME} does not exist.
 	    echo Running ${PBS_EXEC}/libexec/pbs_habitat to create it.
-	    ${PBS_EXEC}/libexec/pbs_habitat || return 1
+	    sh -x ${PBS_EXEC}/libexec/pbs_habitat || return 1
 	    echo Home directory ${PBS_HOME} created.
 	    ;;
 	2|3)
 	    echo PBS Home directory ${PBS_HOME} needs updating.
 	    echo Running ${PBS_EXEC}/libexec/pbs_habitat to update it.
-	    ${PBS_EXEC}/libexec/pbs_habitat || return 1
+	    sh -x ${PBS_EXEC}/libexec/pbs_habitat || return 1
 	    echo Home directory ${PBS_HOME} updated.
 	    ;;
 	4)
 	    echo PBS Home directory ${PBS_HOME} needs datastore.
 	    echo Running ${PBS_EXEC}/libexec/pbs_habitat to initialize it.
-	    ${PBS_EXEC}/libexec/pbs_habitat || return 1
+	    sh -x ${PBS_EXEC}/libexec/pbs_habitat || return 1
 	    echo Datastore directory ${PBS_HOME}/datastore initialized.
 	    ;;
     esac
