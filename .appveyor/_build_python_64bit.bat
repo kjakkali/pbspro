@@ -183,6 +183,7 @@ if not %ERRORLEVEL% == 0 (
 cd "%BINARIESDIR%"
 2>nul rd /S /Q "%BINARIESDIR%\cpython-%PYTHON_VERSION%"
 2>nul del /Q /F "%BINARIESDIR%\cabarc.exe"
+2>nul rd /S /Q "%BINARIESDIR%\python_x64\Lib\site-packages\adodbapi"
 
 exit /b 0
 
