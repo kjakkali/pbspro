@@ -989,6 +989,13 @@ class PBSTestSuite(unittest.TestCase):
                 self.du.set_pbs_config(comm.hostname, confs=new_pbsconf)
                 comm.pbs_conf = new_pbsconf
                 comm.pi.initd(comm.hostname, "restart", daemon="comm")
+                rv = comm.isUp()
+                if not rv:
+                    self.logger.error('comm ' + comm.hostname + ' is down')
+                    comm.start()
+                    msg = 'Failed to restart comm ' + comm.hostname
+                    self.assertTrue(comm.isUp(), msg)
+
 
     def _revert_pbsconf_mom(self, primary_server, vals_to_set):
         """
@@ -1062,6 +1069,13 @@ class PBSTestSuite(unittest.TestCase):
                                        append=False)
                 mom.pbs_conf = new_pbsconf
                 mom.pi.initd(mom.hostname, "restart", daemon="mom")
+                rv = mom.isUp()
+                if not rv:
+                     self.logger.error('mom ' + mom.hostname + ' is down')
+                     mom.start()
+                     msg = 'Failed to restart mom ' + mom.hostname
+                     self.assertTrue(mom.isUp(), msg)
+
 
     def _revert_pbsconf_server(self, vals_to_set):
         """
@@ -1169,6 +1183,12 @@ class PBSTestSuite(unittest.TestCase):
                         # start/stop the particular daemon
                         server.pi.initd(server.hostname, initcmd[1],
                                         daemon=initcmd[0])
+                rv = server.isUp()
+                if not rv:
+                      self.logger.error('server ' + server.hostname + ' is down')
+                      server.start()
+                      msg = 'Failed to restart server ' + server.hostname
+                      self.assertTrue(server.isUp(), msg)
 
     def revert_pbsconf(self):
         """
