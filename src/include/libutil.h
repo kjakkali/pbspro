@@ -46,6 +46,7 @@ extern "C" {
 
 #include <time.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <netinet/in.h>
 
 /* misc_utils specific */

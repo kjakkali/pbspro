@@ -37,9 +37,9 @@
  * subject to Altair's trademark licensing policies.
  */
 
+#include <Python.h>
 #include <pbs_config.h>
 #include <wchar.h>
-#include <Python.h>
 #include "pbs_ifl.h"
 #include "pbs_internal.h"
 #include "log.h"
