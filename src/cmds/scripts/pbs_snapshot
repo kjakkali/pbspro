@@ -103,7 +103,7 @@ fi
 
 export PYTHONPATH=${ptllibpath}:${PYTHONPATH}
 
-if [ -x $ptlbinpath ] && [ -x $ptllibpath ];then
+if [ -d $ptlbinpath ] && [ -d $ptllibpath ];then
     if [ -x "${__PBS_EXEC}/python/bin/python" ]; then
         ${__PBS_EXEC}/python/bin/python ${ptlbinpath}/${__pbs_snapshot} "${@}"
     else
