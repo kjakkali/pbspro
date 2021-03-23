@@ -6800,7 +6800,7 @@ pbs.logjobmsg(pbs.event().job.id, "epilogue hook executed")
         """
 
         # skip this test due to PP-972
-        self.skip_test(reason="Test fails due to PP-972")
+        #self.skip_test(reason="Test fails due to PP-972")
 
         self.server.manager(MGR_CMD_SET, SERVER,
                             {'job_history_enable': "true"}, sudo=True)
